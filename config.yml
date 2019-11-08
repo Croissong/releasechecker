@@ -1,0 +1,9 @@
+mode: dev
+entries:
+  - name: terraform
+    source: |
+      terraform version | sed -E 's/.*(v.*)/\1/'
+    provider:
+      type: regex
+      config:
+        url: 'https://releases.hashicorp.com/terraform/'
