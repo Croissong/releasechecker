@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/config"
+	"github.com/croissong/releasechecker/pkg/hooks"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/providers"
+	"github.com/croissong/releasechecker/pkg/versions"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
@@ -33,7 +35,10 @@ to quickly create a Cobra application.`,
 			log.Logger.Error(err)
 		}
 		log.Logger.Infof("The version for %s is %s", name, out)
-		providers.GetVersion()
+		versionStrings := providers.GetVersions()
+		latestVersion, err := versions.GetLatestVersion(versionStrings)
+		log.Logger.Info("Versions ", latestVersion)
+		hooks.DownloadFile(latestVersion, "https://releases.hashicorp.com/terraform/0.12.13/terraform_0.12.13_linux_amd64.zip", "/tmp/terraform", true)
 	},
 }
 

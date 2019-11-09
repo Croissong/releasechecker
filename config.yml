@@ -2,8 +2,15 @@ mode: dev
 entries:
   - name: terraform
     source: |
-      terraform version | sed -E 's/.*(v.*)/\1/'
+      terraform version | sed -E 's/.*v(.*)/\1/'
     provider:
       type: regex
       config:
         url: 'https://releases.hashicorp.com/terraform/'
+    hooks:
+      - type: download
+        config:
+          url: 'https://releases.hashicorp.com/terraform/{{.Version}}/terraform_{{.Version}}_linux_amd64.zip'
+          extract: true
+  # - https://github.com/mholt/archiver/releases
+  # - helmfile
