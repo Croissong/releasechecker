@@ -11,6 +11,6 @@ func GetProvider(providerConfig map[string]interface{}) provider {
 }
 
 type provider interface {
-	Init() provider
+	Init(providerConfig map[string]interface{}) provider
 	GetVersions() []string
 }

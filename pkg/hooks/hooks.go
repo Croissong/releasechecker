@@ -4,17 +4,20 @@ var hookMap = map[string]hook{
 	"download": downloader{},
 }
 
-func GetHooks(hookConfigs []map[string]interface{}) []hook {
+func GetHooks(hookConfigs []map[string]interface{}) ([]hook, error) {
 	var hooks []hook
 	for _, hookConfig := range hookConfigs {
 		hookType := hookConfig["type"].(string)
-		hook := hookMap[hookType].Init(hookConfig)
+		hook, err := hookMap[hookType].Init(hookConfig)
+		if err != nil {
+			return nil, err
+		}
 		hooks = append(hooks, hook)
 	}
-	return hooks
+	return hooks, nil
 }
 
 type hook interface {
-	Init(hookConfig map[string]interface{}) hook
+	Init(hookConfig map[string]interface{}) (hook, error)
 	Run(version string) error
 }

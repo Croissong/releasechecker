@@ -37,7 +37,10 @@ to quickly create a Cobra application.`,
 			log.Logger.Fatal(err)
 		}
 		log.Logger.Info("Latest version ", latestVersion)
-		hookRunners := hooks.GetHooks(entries[0].Hooks)
+		hookRunners, err := hooks.GetHooks(entries[0].Hooks)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
 		for _, hook := range hookRunners {
 			hook.Run(latestVersion)
 		}
