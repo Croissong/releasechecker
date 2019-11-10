@@ -1,7 +1,6 @@
 package versions
 
 import (
-	"github.com/croissong/releasechecker/pkg/log"
 	version "github.com/hashicorp/go-version"
 	"sort"
 )
@@ -16,8 +15,6 @@ func GetLatestVersion(versionStrings []string) (string, error) {
 		versions = append(versions, v)
 	}
 	sort.Sort(version.Collection(versions))
-	log.Logger.Debug("Sorted versions: ", versions)
 	latestVersion := versions[len(versions)-1]
-	log.Logger.Debug("Latest versions: ", latestVersion)
 	return latestVersion.Original(), nil
 }

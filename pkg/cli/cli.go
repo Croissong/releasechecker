@@ -1,15 +1,14 @@
 package cli
 
 import (
-	"fmt"
 	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/hooks"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/providers"
+	"github.com/croissong/releasechecker/pkg/sources"
 	"github.com/croissong/releasechecker/pkg/versions"
 	"github.com/spf13/cobra"
 	"os"
-	"os/exec"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,18 +26,21 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		entries := config.Config.Entries
 		name := entries[0].Name
-		source := entries[0].Source
-		sourceCmd := exec.Command("bash", "-c", fmt.Sprintf("%s", source))
-		log.Logger.Debug("Running source cmd: ", sourceCmd.String())
-		out, err := sourceCmd.Output()
-		if err != nil {
-			log.Logger.Error(err)
-		}
-		log.Logger.Infof("The version for %s is %s", name, out)
-		versionStrings := providers.GetVersions()
+		source := sources.GetSource(entries[0].Source)
+		currentVersion := source.GetVersion()
+
+		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
+		provider := providers.GetProvider(entries[0].Provider)
+		versionStrings := provider.GetVersions()
 		latestVersion, err := versions.GetLatestVersion(versionStrings)
-		log.Logger.Info("Versions ", latestVersion)
-		hooks.DownloadFile(latestVersion, "https://releases.hashicorp.com/terraform/0.12.13/terraform_0.12.13_linux_amd64.zip", "/tmp/terraform", true)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+		log.Logger.Info("Latest version ", latestVersion)
+		hookRunners := hooks.GetHooks(entries[0].Hooks)
+		for _, hook := range hookRunners {
+			hook.Run(latestVersion)
+		}
 	},
 }
 

@@ -43,6 +43,8 @@ type configuration struct {
 }
 
 type entry struct {
-	Source string
-	Name   string
+	Name     string
+	Source   map[string]interface{}
+	Provider map[string]interface{}
+	Hooks    []map[string]interface{}
 }
