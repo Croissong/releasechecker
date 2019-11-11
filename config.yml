@@ -12,7 +12,7 @@ entries:
     hooks:
       - type: download
         url: 'https://releases.hashicorp.com/terraform/{{.Version}}/terraform_{{.Version}}_linux_amd64.zip'
-        dest: /tmp/terraform
+        dest: '$HOME/.local/bin/terraform'
         extract:
           file: terraform
   # - https://github.com/mholt/archiver/releases

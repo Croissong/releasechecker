@@ -1,9 +1,13 @@
 package sources
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/util"
+	ver "github.com/hashicorp/go-version"
 	"os/exec"
+	"strings"
 )
 
 var sourceMap = map[string]source{
@@ -18,7 +22,7 @@ func GetSource(sourceConfig map[string]interface{}) source {
 
 type source interface {
 	Init(sourceConfig map[string]interface{}) source
-	GetVersion() string
+	GetVersion() (*ver.Version, error)
 }
 
 type command struct {
@@ -30,12 +34,24 @@ func (cmd command) Init(sourceConfig map[string]interface{}) source {
 	return cmd
 }
 
-func (cmd command) GetVersion() string {
-	sourceCmd := exec.Command("bash", "-c", fmt.Sprintf("%s", cmd.command))
+func (cmd command) GetVersion() (*ver.Version, error) {
+	sourceCmd := exec.Command("bash", "-c", fmt.Sprintf("set -o pipefail; %s", cmd.command))
 	log.Logger.Debug("Running source cmd: ", sourceCmd.String())
-	out, err := sourceCmd.Output()
+	var out bytes.Buffer
+	sourceCmd.Stdout = &out
+	sourceCmd.Stderr = &out
+	err := sourceCmd.Run()
 	if err != nil {
-		log.Logger.Error(err)
+		if strings.Contains(out.String(), "command not found") {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return string(out)
+	log.Logger.Debugf("Running source cmd: %s", out.String())
+	versionString := util.StripWhitespace(out.String())
+	version, err := ver.NewVersion(versionString)
+	if err != nil {
+		return nil, err
+	}
+	return version, nil
 }

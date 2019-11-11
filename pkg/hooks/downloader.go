@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/util"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
@@ -37,7 +38,7 @@ func (downloader downloader) Init(hookConfig map[string]interface{}) (hook, erro
 		return nil, err
 	}
 	downloader.urlTemplate = config.Url
-	downloader.targetPath = config.Dest
+	downloader.targetPath = os.ExpandEnv(config.Dest)
 	if config.Extract != (extractConfig{}) {
 		downloader.extract = true
 		downloader.extractFile = config.Extract.File
@@ -90,9 +91,15 @@ func (downloader downloader) Run(version string) error {
 		}
 		extractedFilePath := filepath.Join(tmpDir, downloader.extractFile)
 		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, downloader.targetPath)
-		os.Rename(extractedFilePath, downloader.targetPath)
+		err := util.CopyFile(extractedFilePath, downloader.targetPath)
+		if err != nil {
+			return err
+		}
 	} else {
-		os.Rename(tmpfn, downloader.targetPath)
+		err := util.CopyFile(tmpfn, downloader.targetPath)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

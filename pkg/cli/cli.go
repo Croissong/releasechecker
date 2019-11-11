@@ -26,10 +26,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		entries := config.Config.Entries
 		name := entries[0].Name
-		source := sources.GetSource(entries[0].Source)
-		currentVersion := source.GetVersion()
 
-		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
 		provider := providers.GetProvider(entries[0].Provider)
 		versionStrings := provider.GetVersions()
 		latestVersion, err := versions.GetLatestVersion(versionStrings)
@@ -37,12 +34,26 @@ to quickly create a Cobra application.`,
 			log.Logger.Fatal(err)
 		}
 		log.Logger.Info("Latest version ", latestVersion)
-		hookRunners, err := hooks.GetHooks(entries[0].Hooks)
+
+		source := sources.GetSource(entries[0].Source)
+		currentVersion, err := source.GetVersion()
 		if err != nil {
 			log.Logger.Fatal(err)
 		}
-		for _, hook := range hookRunners {
-			hook.Run(latestVersion)
+
+		if currentVersion == nil {
+			log.Logger.Infof("No current version for %s detected", name)
+			hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
+			return
+		}
+
+		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
+
+		if versions.IsNewer(latestVersion, currentVersion) {
+			log.Logger.Info("Newer version detected")
+			hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
+		} else {
+			log.Logger.Info("No new version detected")
 		}
 	},
 }
