@@ -7,6 +7,7 @@ import (
 	"github.com/croissong/releasechecker/pkg/providers"
 	"github.com/croissong/releasechecker/pkg/sources"
 	"github.com/croissong/releasechecker/pkg/versions"
+	ver "github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -25,35 +26,50 @@ to quickly create a Cobra application.`,
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		entries := config.Config.Entries
-		name := entries[0].Name
+		for _, entry := range entries {
+			name := entry.Name
 
-		provider := providers.GetProvider(entries[0].Provider)
-		versionStrings := provider.GetVersions()
-		latestVersion, err := versions.GetLatestVersion(versionStrings)
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
-		log.Logger.Info("Latest version ", latestVersion)
+			provider, err := providers.GetProvider(entry.Provider)
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+			versionStrings, err := provider.GetVersions()
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+			latestVersion, err := versions.GetLatestVersion(versionStrings)
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+			log.Logger.Info("Latest version is ", latestVersion)
 
-		source := sources.GetSource(entries[0].Source)
-		currentVersion, err := source.GetVersion()
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
+			source, err := sources.GetSource(entry.Source)
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+			currentVersionString, err := source.GetVersion()
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+			currentVersion, err := ver.NewVersion(currentVersionString)
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
 
-		if currentVersion == nil {
-			log.Logger.Infof("No current version for %s detected", name)
-			hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
-			return
-		}
+			if currentVersion == nil {
+				log.Logger.Infof("No current version for %s detected", name)
+				hooks.RunHooks(latestVersion.Original(), entry.Hooks)
+				return
+			}
 
-		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
+			log.Logger.Infof("The current version for %s is %s", name, currentVersion)
 
-		if versions.IsNewer(latestVersion, currentVersion) {
-			log.Logger.Info("Newer version detected")
-			hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
-		} else {
-			log.Logger.Info("No new version detected")
+			if versions.IsNewer(latestVersion, currentVersion) {
+				log.Logger.Info("Newer version detected")
+				hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
+			} else {
+				log.Logger.Info("No new version detected")
+			}
 		}
 	},
 }

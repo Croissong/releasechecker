@@ -7,7 +7,7 @@ entries:
         terraform version | sed -E 's/.*v(.*)/\1/'
     provider:
       type: regex
-      url: 'https://releases.hashicorp.com/terraform/'
+      url: https://releases.hashicorp.com/terraform/
       regex: '.*>terraform_(.*)<.*'
     hooks:
       - type: download
@@ -15,5 +15,14 @@ entries:
         dest: '$HOME/.local/bin/terraform'
         extract:
           file: terraform
+
+  - name: helmfile
+    source:
+      type: command
+      command: |
+        helmfile -v | sed -rn 's/.*v([0-9\.]+)/\1/p'
+    provider:
+      type: github
+      repo: roboll/helmfile
   # - https://github.com/mholt/archiver/releases
   # - helmfile

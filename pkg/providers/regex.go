@@ -2,29 +2,37 @@ package providers
 
 import (
 	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 )
 
 type regex struct {
-	versionRegex string
+	Regex string
+	Url   string
 }
 
-func (cmd regex) Init(providerConfig map[string]interface{}) provider {
-	cmd.versionRegex = providerConfig["regex"].(string)
-	return cmd
+func NewRegex(config map[string]interface{}) (provider, error) {
+	var regex regex
+	if err := mapstructure.Decode(config, &regex); err != nil {
+		return nil, err
+	}
+	log.Logger.Debugf("%#v", regex)
+	return &regex, nil
 }
 
-func (regex regex) GetVersions() []string {
-	var versionRegex = regexp.MustCompile(regex.versionRegex)
-	url := "https://releases.hashicorp.com/terraform/"
-	resp, err := http.Get(url)
+func (regex regex) GetVersions() ([]string, error) {
+	var versionRegex = regexp.MustCompile(regex.Regex)
+	resp, err := http.Get(regex.Url)
 	if err != nil {
-		// handle error
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	bodyString := string(body)
 	matches := versionRegex.FindAllStringSubmatch(bodyString, -1)
 	var versions []string
@@ -32,5 +40,5 @@ func (regex regex) GetVersions() []string {
 		versions = append(versions, match[1])
 	}
 	log.Logger.Debug("%s", versions)
-	return versions
+	return versions, nil
 }

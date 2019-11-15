@@ -1,16 +1,26 @@
 package providers
 
-var providerMap = map[string]provider{
-	"regex": regex{},
+import (
+	"errors"
+	"fmt"
+)
+
+var providerMap = map[string]func(conf map[string]interface{}) (provider, error){
+	"regex":  NewRegex,
+	"github": NewGithub,
 }
 
-func GetProvider(providerConfig map[string]interface{}) provider {
-	providerType := providerConfig["type"].(string)
-	provider := providerMap[providerType].Init(providerConfig)
-	return provider
+func GetProvider(providerConfig map[string]interface{}) (provider, error) {
+	if providerType, ok := providerConfig["type"]; ok {
+		providerType := providerType.(string)
+		if provider, ok := providerMap[providerType]; ok {
+			return provider(providerConfig)
+		}
+		return nil, errors.New(fmt.Sprintf("Provider '%s' not found", providerType))
+	}
+	return nil, errors.New("Missing 'type' key in provider config")
 }
 
 type provider interface {
-	Init(providerConfig map[string]interface{}) provider
-	GetVersions() []string
+	GetVersions() ([]string, error)
 }
