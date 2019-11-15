@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/util"
@@ -15,7 +16,11 @@ import (
 	"text/template"
 )
 
-type downloaderConfig struct {
+type downloader struct {
+	config config
+}
+
+type config struct {
 	Url     string
 	Dest    string
 	Extract extractConfig
@@ -25,27 +30,20 @@ type extractConfig struct {
 	File string
 }
 
-type downloader struct {
-	urlTemplate string
-	targetPath  string
-	extract     bool
-	extractFile string
-}
-
-func (downloader downloader) Init(hookConfig map[string]interface{}) (hook, error) {
-	var config downloaderConfig
-	if err := mapstructure.Decode(hookConfig, &config); err != nil {
+func NewDownloader(conf map[string]interface{}) (hook, error) {
+	var config config
+	if err := mapstructure.Decode(conf, &config); err != nil {
 		return nil, err
 	}
-	downloader.urlTemplate = config.Url
-	downloader.targetPath = os.ExpandEnv(config.Dest)
-	if config.Extract != (extractConfig{}) {
-		downloader.extract = true
-		downloader.extractFile = config.Extract.File
-	} else {
-		downloader.extract = false
+	if config.Url == "" {
+		return nil, errors.New(fmt.Sprintf("Missing field 'url' in config"))
 	}
-	return downloader, nil
+	if config.Dest == "" {
+		return nil, errors.New(fmt.Sprintf("Missing field 'dest' in config"))
+	}
+	downloader := downloader{config: config}
+	log.Logger.Debugf("%#v", downloader)
+	return &downloader, nil
 }
 
 func (downloader downloader) Run(version string) error {
@@ -83,20 +81,20 @@ func (downloader downloader) Run(version string) error {
 		return err
 	}
 
-	if downloader.extract {
+	if downloader.config.Extract.File != "" {
 		log.Logger.Info("Extracting archive ", tmpfn)
 		err = archiver.Unarchive(tmpfn, tmpDir)
 		if err != nil {
 			log.Logger.Fatal(err)
 		}
-		extractedFilePath := filepath.Join(tmpDir, downloader.extractFile)
-		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, downloader.targetPath)
-		err := util.CopyFile(extractedFilePath, downloader.targetPath)
+		extractedFilePath := filepath.Join(tmpDir, downloader.config.Extract.File)
+		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, downloader.config.Dest)
+		err := util.CopyFile(extractedFilePath, downloader.config.Dest)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := util.CopyFile(tmpfn, downloader.targetPath)
+		err := util.CopyFile(tmpfn, downloader.config.Dest)
 		if err != nil {
 			return err
 		}
@@ -105,7 +103,7 @@ func (downloader downloader) Run(version string) error {
 }
 
 func (downloader downloader) buildUrl(version string) (string, error) {
-	tmpl, err := template.New("urlTemplate").Parse(downloader.urlTemplate)
+	tmpl, err := template.New("urlTemplate").Parse(downloader.config.Url)
 	if err != nil {
 		return "", err
 	}

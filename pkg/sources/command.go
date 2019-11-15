@@ -16,7 +16,6 @@ type command struct {
 }
 
 func NewCommand(config map[string]interface{}) (source, error) {
-	log.Logger.Debug("conf cmd: ", config)
 	var command command
 	if err := mapstructure.Decode(config, &command); err != nil {
 		return nil, err
