@@ -3,7 +3,6 @@ package hooks
 import (
 	"errors"
 	"fmt"
-	"github.com/croissong/releasechecker/pkg/log"
 )
 
 var hookMap = map[string]func(conf map[string]interface{}) (hook, error){
@@ -18,7 +17,6 @@ func RunHooks(version string, hookConfigs []map[string]interface{}) error {
 	for _, hook := range hookRunners {
 		err := hook.Run(version)
 		if err != nil {
-			log.Logger.Fatal(err)
 			return err
 		}
 	}
@@ -36,10 +34,12 @@ func getHooks(hookConfigs []map[string]interface{}) ([]hook, error) {
 					return nil, err
 				}
 				hooks = append(hooks, hook)
+			} else {
+				return nil, errors.New(fmt.Sprintf("Hook '%s' not found", hookType))
 			}
-			return nil, errors.New(fmt.Sprintf("Hook '%s' not found", hookType))
+		} else {
+			return nil, errors.New("Missing 'type' key in hook config")
 		}
-		return nil, errors.New("Missing 'type' key in hook config")
 	}
 	return hooks, nil
 }

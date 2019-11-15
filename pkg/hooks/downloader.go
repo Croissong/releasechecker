@@ -80,6 +80,7 @@ func (downloader downloader) Run(version string) error {
 		log.Logger.Fatal(err)
 		return err
 	}
+	targetPath := os.ExpandEnv(downloader.config.Dest)
 
 	if downloader.config.Extract.File != "" {
 		log.Logger.Info("Extracting archive ", tmpfn)
@@ -88,13 +89,13 @@ func (downloader downloader) Run(version string) error {
 			log.Logger.Fatal(err)
 		}
 		extractedFilePath := filepath.Join(tmpDir, downloader.config.Extract.File)
-		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, downloader.config.Dest)
-		err := util.CopyFile(extractedFilePath, downloader.config.Dest)
+		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, targetPath)
+		err := util.CopyFile(extractedFilePath, targetPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := util.CopyFile(tmpfn, downloader.config.Dest)
+		err := util.CopyFile(tmpfn, targetPath)
 		if err != nil {
 			return err
 		}

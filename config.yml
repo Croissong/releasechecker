@@ -4,7 +4,7 @@ entries:
     source:
       type: command
       command: |
-        terraform version | sed -E 's/.*v(.*)/\1/'
+        terraform version | sed -rn 's/.*v([0-9\.]+)/\1/p'
     provider:
       type: regex
       url: https://releases.hashicorp.com/terraform/
@@ -24,5 +24,9 @@ entries:
     provider:
       type: github
       repo: roboll/helmfile
+    hooks:
+      - type: download
+        url: 'https://github.com/roboll/helmfile/releases/download/v{{.Version}}/helmfile_linux_amd64'
+        dest: '/tmp/helmfile'
   # - https://github.com/mholt/archiver/releases
   # - helmfile

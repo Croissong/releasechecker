@@ -66,7 +66,10 @@ to quickly create a Cobra application.`,
 
 			if versions.IsNewer(latestVersion, currentVersion) {
 				log.Logger.Info("Newer version detected")
-				hooks.RunHooks(latestVersion.Original(), entries[0].Hooks)
+				err = hooks.RunHooks(latestVersion.Original(), entry.Hooks)
+				if err != nil {
+					log.Logger.Fatal(err)
+				}
 			} else {
 				log.Logger.Info("No new version detected")
 			}
