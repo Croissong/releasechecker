@@ -73,7 +73,9 @@ func checkReleases() {
 
 		if currentVersionString == "" {
 			log.Logger.Infof("No current version for %s detected", name)
-			hooks.RunHooks(latestVersion.Original(), entry.Hooks)
+			if err = hooks.RunHooks(latestVersion.Original(), entry.Hooks); err != nil {
+				log.Logger.Fatal(err)
+			}
 			return
 		}
 
@@ -86,8 +88,7 @@ func checkReleases() {
 
 		if versions.IsNewer(latestVersion, currentVersion) {
 			log.Logger.Info("Newer version detected")
-			err = hooks.RunHooks(latestVersion.Original(), entry.Hooks)
-			if err != nil {
+			if err = hooks.RunHooks(latestVersion.Original(), entry.Hooks); err != nil {
 				log.Logger.Fatal(err)
 			}
 		} else {
