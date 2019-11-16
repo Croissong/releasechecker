@@ -1,4 +1,5 @@
-mode: dev
+debug: true
+initSources: true
 entries:
   - name: terraform
     source:
@@ -26,7 +27,24 @@ entries:
       repo: roboll/helmfile
     hooks:
       - type: download
-        url: 'https://github.com/roboll/helmfile/releases/download/v{{.Version}}/helmfile_linux_amd64'
+        url: 'https://github.com/roboll/helmfile/releases/download/{{.Version}}/helmfile_linux_amd64'
+        dest: '$HOME/.local/bin/helmfile'
+        chmod: 755
+
+  - name: archiver
+    source:
+      type: command
+      command: |
+        archiver -v | sed -rn 's/.*v([0-9\.]+)/\1/p'
+    provider:
+      type: github
+      repo: mholt/archiver
+    hooks:
+      - type: download
+        github:
+          repo: https://github.com/mholt/archiver/releases
+          asset: arc_linux_amd64
+
         dest: '/tmp/helmfile'
   # - https://github.com/mholt/archiver/releases
   # - helmfile

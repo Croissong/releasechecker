@@ -3,6 +3,7 @@ module github.com/croissong/releasechecker
 go 1.13
 
 require (
+	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/hashicorp/go-version v1.2.0

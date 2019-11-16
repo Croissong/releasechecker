@@ -39,7 +39,9 @@ func InitConfig() {
 }
 
 type configuration struct {
-	Entries []entry
+	Debug       bool
+	InitSources bool
+	Entries     []entry
 }
 
 type entry struct {

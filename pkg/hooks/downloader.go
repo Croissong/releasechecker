@@ -4,20 +4,21 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/cavaliercoder/grab"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/util"
 	"github.com/mholt/archiver"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
+	"time"
 )
 
 type downloader struct {
 	config config
+	client *grab.Client
 }
 
 type config struct {
@@ -41,7 +42,7 @@ func NewDownloader(conf map[string]interface{}) (hook, error) {
 	if config.Dest == "" {
 		return nil, errors.New(fmt.Sprintf("Missing field 'dest' in config"))
 	}
-	downloader := downloader{config: config}
+	downloader := downloader{config: config, client: grab.NewClient()}
 	log.Logger.Debugf("%#v", downloader)
 	return &downloader, nil
 }
@@ -51,54 +52,68 @@ func (downloader downloader) Run(version string) error {
 	if err != nil {
 		return err
 	}
-	urlParts := strings.Split(url, "/")
-	downloadPath := urlParts[len(urlParts)-1]
 
-	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("%s*", downloadPath))
+	tmpDir, err := ioutil.TempDir("", "releasechecker")
+	if err != nil {
+		log.Logger.Fatal(err)
+	}
 	defer os.RemoveAll(tmpDir) // clean up
 
-	log.Logger.Info("Downloading ", url)
-	response, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-
-	tmpfn := filepath.Join(tmpDir, downloadPath)
-	log.Logger.Debug("Downloading to ", tmpfn)
+	tmpFilePath, err := downloader.download(url, tmpDir)
 	if err != nil {
 		log.Logger.Fatal(err)
 	}
 
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Logger.Fatal(err)
-		return err
+	extractConf := downloader.config.Extract
+	if extractConf != (extractConfig{}) {
+		downloader.extract(tmpFilePath, tmpDir)
+		tmpFilePath = filepath.Join(tmpDir, downloader.config.Extract.File)
 	}
 
-	if err := ioutil.WriteFile(tmpfn, body, 0666); err != nil {
-		log.Logger.Fatal(err)
-		return err
-	}
 	targetPath := os.ExpandEnv(downloader.config.Dest)
+	err = util.CopyFile(tmpFilePath, targetPath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	if downloader.config.Extract.File != "" {
-		log.Logger.Info("Extracting archive ", tmpfn)
-		err = archiver.Unarchive(tmpfn, tmpDir)
-		if err != nil {
-			log.Logger.Fatal(err)
+func (downloader downloader) download(url string, dest string) (string, error) {
+	req, _ := grab.NewRequest(dest, url)
+	log.Logger.Info("Downloading %v...", req.URL())
+	resp := downloader.client.Do(req)
+	log.Logger.Info("Response status: %v", resp.HTTPResponse.Status)
+
+	// start UI loop
+	t := time.NewTicker(500 * time.Millisecond)
+	defer t.Stop()
+
+Loop:
+	for {
+		select {
+		case <-t.C:
+			log.Logger.Info("%.02f%% complete", resp.Progress())
+
+		case <-resp.Done:
+			break Loop
 		}
-		extractedFilePath := filepath.Join(tmpDir, downloader.config.Extract.File)
-		log.Logger.Debugf("Renaming %s to %s", extractedFilePath, targetPath)
-		err := util.CopyFile(extractedFilePath, targetPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := util.CopyFile(tmpfn, targetPath)
-		if err != nil {
-			return err
-		}
+	}
+
+	if err := resp.Err(); err != nil {
+		log.Logger.Errorf("Download failed: %v", err)
+		return "", err
+	}
+
+	filePath := filepath.Join(dest, resp.Filename)
+	log.Logger.Infof("Download saved to %s/%v")
+	return filePath, nil
+}
+
+func (downloader downloader) extract(archive string, dest string) error {
+	log.Logger.Infof("Extracting archive %s to %s", archive, dest)
+	err := archiver.Unarchive(archive, dest)
+	if err != nil {
+		log.Logger.Fatal(err)
 	}
 	return nil
 }

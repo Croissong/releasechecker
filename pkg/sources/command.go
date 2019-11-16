@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/util"
 	"github.com/mitchellh/mapstructure"
 	"os/exec"
-	"strings"
 )
 
 type command struct {
@@ -35,10 +35,13 @@ func (cmd command) GetVersion() (string, error) {
 	sourceCmd.Stderr = &out
 	err := sourceCmd.Run()
 	if err != nil {
-		if strings.Contains(out.String(), "command not found") {
+		errMessage := fmt.Sprintf("Command err: %s - %s", err, out.String())
+		if config.Config.InitSources {
+			log.Logger.Infof("Ignoring cmd err due to 'initSouces' set. (%s)", errMessage)
 			return "", nil
+		} else {
+			return "", errors.New(errMessage)
 		}
-		return "", err
 	}
 	log.Logger.Debugf("Got source version: %s", out.String())
 	version := util.StripWhitespace(out.String())

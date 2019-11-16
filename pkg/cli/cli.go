@@ -25,55 +25,7 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		entries := config.Config.Entries
-		for _, entry := range entries {
-			name := entry.Name
-
-			provider, err := providers.GetProvider(entry.Provider)
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-			versionStrings, err := provider.GetVersions()
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-			latestVersion, err := versions.GetLatestVersion(versionStrings)
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-			log.Logger.Info("Latest version is ", latestVersion)
-
-			source, err := sources.GetSource(entry.Source)
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-			currentVersionString, err := source.GetVersion()
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-			currentVersion, err := ver.NewVersion(currentVersionString)
-			if err != nil {
-				log.Logger.Fatal(err)
-			}
-
-			if currentVersion == nil {
-				log.Logger.Infof("No current version for %s detected", name)
-				hooks.RunHooks(latestVersion.Original(), entry.Hooks)
-				return
-			}
-
-			log.Logger.Infof("The current version for %s is %s", name, currentVersion)
-
-			if versions.IsNewer(latestVersion, currentVersion) {
-				log.Logger.Info("Newer version detected")
-				err = hooks.RunHooks(latestVersion.Original(), entry.Hooks)
-				if err != nil {
-					log.Logger.Fatal(err)
-				}
-			} else {
-				log.Logger.Info("No new version detected")
-			}
-		}
+		checkReleases()
 	},
 }
 
@@ -89,4 +41,57 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(log.InitLogger, config.InitConfig)
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.releasechecker.yaml)")
+}
+
+func checkReleases() {
+	entries := config.Config.Entries
+	for _, entry := range entries {
+		name := entry.Name
+		log.Logger.Info("Checking version for ", name)
+		provider, err := providers.GetProvider(entry.Provider)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+		versionStrings, err := provider.GetVersions()
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+		latestVersion, err := versions.GetLatestVersion(versionStrings)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+		log.Logger.Info("Latest version is ", latestVersion)
+
+		source, err := sources.GetSource(entry.Source)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+		currentVersionString, err := source.GetVersion()
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+
+		if currentVersionString == "" {
+			log.Logger.Infof("No current version for %s detected", name)
+			hooks.RunHooks(latestVersion.Original(), entry.Hooks)
+			return
+		}
+
+		currentVersion, err := ver.NewVersion(currentVersionString)
+		if err != nil {
+			log.Logger.Fatal(err)
+		}
+
+		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
+
+		if versions.IsNewer(latestVersion, currentVersion) {
+			log.Logger.Info("Newer version detected")
+			err = hooks.RunHooks(latestVersion.Original(), entry.Hooks)
+			if err != nil {
+				log.Logger.Fatal(err)
+			}
+		} else {
+			log.Logger.Info("No new version detected")
+		}
+	}
 }
