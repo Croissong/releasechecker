@@ -61,7 +61,7 @@ func checkReleases() {
 
 		if versions.IsNewer(upstreamVersion, downstreamVersion) {
 			Logger.Info("Newer version detected")
-			if err = hooks.RunHooks(downstreamVersion.Original(), entry.Hooks); err != nil {
+			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
 				Logger.Fatal(err)
 			}
 		} else {
