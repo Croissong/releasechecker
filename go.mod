@@ -16,4 +16,5 @@ require (
 	github.com/spf13/viper v1.5.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/zap v1.12.0
+	gopkg.in/src-d/go-git.v4 v4.13.1
 )

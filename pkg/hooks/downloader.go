@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -84,11 +85,18 @@ func (downloader downloader) Run(version string) error {
 	return nil
 }
 
-func (downloader downloader) download(url string, dest string) (string, error) {
+func (downloader downloader) download(url string, destDir string) (string, error) {
+	urlParts := strings.Split(url, "/")
+	dest := filepath.Join(destDir, urlParts[len(urlParts)-1])
+	log.Logger.Infof("Downloading %s to %s ...", url, dest)
 	req, _ := grab.NewRequest(dest, url)
-	log.Logger.Infof("Downloading %v...", req.URL())
 	resp := downloader.client.Do(req)
 	log.Logger.Infof("Response status: %v", resp.HTTPResponse.Status)
+
+	if err := resp.Err(); err != nil {
+		log.Logger.Errorf("Download failed: %v", err)
+		return "", err
+	}
 
 	// start UI loop
 	t := time.NewTicker(500 * time.Millisecond)
@@ -108,10 +116,6 @@ Loop:
 		}
 	}
 
-	if err := resp.Err(); err != nil {
-		log.Logger.Errorf("Download failed: %v", err)
-		return "", err
-	}
 	log.Logger.Infof("Download saved to %s", resp.Filename)
 	return resp.Filename, nil
 }

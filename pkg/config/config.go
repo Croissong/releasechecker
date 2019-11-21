@@ -45,8 +45,8 @@ type configuration struct {
 }
 
 type entry struct {
-	Name     string
-	Source   map[string]interface{}
-	Provider map[string]interface{}
-	Hooks    []map[string]interface{}
+	Name       string
+	Upstream   map[string]interface{}
+	Downstream map[string]interface{}
+	Hooks      []map[string]interface{}
 }

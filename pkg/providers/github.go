@@ -28,6 +28,10 @@ func NewGithub(config map[string]interface{}) (provider, error) {
 	return &github, nil
 }
 
+func (github github) GetVersion() (string, error) {
+	return "", nil
+}
+
 func (github github) GetVersions() ([]string, error) {
 	url := fmt.Sprintf(urlTemplate, github.Repo)
 	log.Logger.Debugf("Fetching github releases from %s", url)

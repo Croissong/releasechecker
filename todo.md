@@ -1,1 +1,1 @@
-https://github.com/cavaliercoder/grab
+https://github.com/google/go-containerregistry

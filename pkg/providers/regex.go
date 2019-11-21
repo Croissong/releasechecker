@@ -22,6 +22,10 @@ func NewRegex(config map[string]interface{}) (provider, error) {
 	return &regex, nil
 }
 
+func (regex regex) GetVersion() (string, error) {
+	return "", nil
+}
+
 func (regex regex) GetVersions() ([]string, error) {
 	var versionRegex = regexp.MustCompile(regex.Regex)
 	resp, err := http.Get(regex.Url)

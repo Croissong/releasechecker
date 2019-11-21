@@ -1,45 +1,35 @@
 package cli
 
 import (
+	"errors"
 	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/hooks"
-	"github.com/croissong/releasechecker/pkg/log"
+	. "github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/providers"
-	"github.com/croissong/releasechecker/pkg/sources"
 	"github.com/croissong/releasechecker/pkg/versions"
 	ver "github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
 	"os"
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "releasechecker",
-	Short: "Check relase",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+	Short: "Check upstream releases, compare them with downstream and execute hooks on changes.",
+	Long:  `Check upstream releases, compare them with downstream and execute hooks on changes.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		checkReleases()
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Logger.Error(err)
+		Logger.Error(err)
 		os.Exit(1)
 	}
 }
 
 func init() {
-	cobra.OnInitialize(log.InitLogger, config.InitConfig)
+	cobra.OnInitialize(InitLogger, config.InitConfig)
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.releasechecker.yaml)")
 }
 
@@ -47,52 +37,85 @@ func checkReleases() {
 	entries := config.Config.Entries
 	for _, entry := range entries {
 		name := entry.Name
-		log.Logger.Info("Checking version for ", name)
-		provider, err := providers.GetProvider(entry.Provider)
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
-		versionStrings, err := provider.GetVersions()
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
-		latestVersion, err := versions.GetLatestVersion(versionStrings)
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
-		log.Logger.Info("Latest version is ", latestVersion)
+		Logger.Info("Checking version for ", name)
 
-		source, err := sources.GetSource(entry.Source)
+		upstreamVersion, err := getUpstreamVersion(entry.Upstream)
 		if err != nil {
-			log.Logger.Fatal(err)
-		}
-		currentVersionString, err := source.GetVersion()
-		if err != nil {
-			log.Logger.Fatal(err)
+			Logger.Fatal(err)
 		}
 
-		if currentVersionString == "" {
-			log.Logger.Infof("No current version for %s detected", name)
-			if err = hooks.RunHooks(latestVersion.Original(), entry.Hooks); err != nil {
-				log.Logger.Fatal(err)
+		downstreamVersion, err := getDownstreamVersion(entry.Downstream)
+		if err != nil {
+			Logger.Fatal(err)
+		}
+
+		if downstreamVersion == nil {
+			Logger.Infof("No downstream version for %s detected", name)
+			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
+				Logger.Fatal(err)
 			}
 			return
 		}
 
-		currentVersion, err := ver.NewVersion(currentVersionString)
-		if err != nil {
-			log.Logger.Fatal(err)
-		}
+		Logger.Infof("The current version for %s is %s", name, downstreamVersion)
 
-		log.Logger.Infof("The current version for %s is %s", name, currentVersion)
-
-		if versions.IsNewer(latestVersion, currentVersion) {
-			log.Logger.Info("Newer version detected")
-			if err = hooks.RunHooks(latestVersion.Original(), entry.Hooks); err != nil {
-				log.Logger.Fatal(err)
+		if versions.IsNewer(upstreamVersion, downstreamVersion) {
+			Logger.Info("Newer version detected")
+			if err = hooks.RunHooks(downstreamVersion.Original(), entry.Hooks); err != nil {
+				Logger.Fatal(err)
 			}
 		} else {
-			log.Logger.Info("No new version detected")
+			Logger.Info("No new version detected")
 		}
 	}
+}
+
+func getUpstreamVersion(upstreamConfig map[string]interface{}) (*ver.Version, error) {
+	if len(upstreamConfig) == 0 {
+		return nil, errors.New("Missing upstream configuration")
+	}
+	upstream, err := providers.GetProvider(upstreamConfig)
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Error getting upstream provider")
+	}
+	versionStrings, err := upstream.GetVersions()
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Error getting upsteam versions")
+	}
+	latestVersion, err := versions.GetLatestVersion(versionStrings)
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Invalid upstream version")
+	}
+	Logger.Info("Upstream version is ", latestVersion)
+	return latestVersion, nil
+}
+
+func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version, error) {
+	if len(downstreamConfig) == 0 {
+		return nil, errors.New("Missing downstream configuration")
+	}
+	downstream, err := providers.GetProvider(downstreamConfig)
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Error getting downstream provider")
+	}
+	currentVersionString, err := downstream.GetVersion()
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Error getting downstream version")
+	}
+
+	if currentVersionString == "" {
+		return nil, nil
+	}
+
+	currentVersion, err := ver.NewVersion(currentVersionString)
+	if err != nil {
+		Logger.Error(err)
+		return nil, errors.New("Invalid downstream version")
+	}
+	return currentVersion, nil
 }

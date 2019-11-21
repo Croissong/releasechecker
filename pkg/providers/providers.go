@@ -5,15 +5,16 @@ import (
 	"fmt"
 )
 
-var providerMap = map[string]func(conf map[string]interface{}) (provider, error){
-	"regex":  NewRegex,
-	"github": NewGithub,
+var providers = map[string]func(conf map[string]interface{}) (provider, error){
+	"command": NewCommand,
+	"github":  NewGithub,
+	"regex":   NewRegex,
 }
 
 func GetProvider(providerConfig map[string]interface{}) (provider, error) {
 	if providerType, ok := providerConfig["type"]; ok {
 		providerType := providerType.(string)
-		if provider, ok := providerMap[providerType]; ok {
+		if provider, ok := providers[providerType]; ok {
 			return provider(providerConfig)
 		}
 		return nil, errors.New(fmt.Sprintf("Provider '%s' not found", providerType))
@@ -22,5 +23,6 @@ func GetProvider(providerConfig map[string]interface{}) (provider, error) {
 }
 
 type provider interface {
+	GetVersion() (string, error)
 	GetVersions() ([]string, error)
 }

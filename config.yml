@@ -2,14 +2,14 @@ debug: true
 initSources: true
 entries:
   - name: terraform
-    source:
-      type: command
-      command: |
-        terraform version | sed -rn 's/.*v([0-9\.]+)/\1/p'
-    provider:
+    upstream:
       type: regex
       url: https://releases.hashicorp.com/terraform/
       regex: '.*>terraform_(.*)<.*'
+    downstream:
+      type: command
+      command: |
+        terraform version | sed -rn 's/.*v([0-9\.]+)/\1/p'
     hooks:
       - type: download
         url: 'https://releases.hashicorp.com/terraform/{{.Version}}/terraform_{{.Version}}_linux_amd64.zip'
@@ -18,13 +18,13 @@ entries:
           file: terraform
 
   - name: helmfile
-    source:
+    upstream:
+      type: github
+      repo: roboll/helmfile
+    downstream:
       type: command
       command: |
         helmfile -v | sed -rn 's/.*v([0-9\.]+)/\1/p'
-    provider:
-      type: github
-      repo: roboll/helmfile
     hooks:
       - type: download
         github:
@@ -33,18 +33,18 @@ entries:
         dest: '$HOME/.local/bin/helmfile'
         chmod: 755
 
-  - name: archiver
-    source:
+  - name: argocd
+    upstream:
+      type: github
+      repo: argoproj/argo-cd
+    downstream:
       type: command
       command: |
-        echo 3.1.0
-    provider:
-      type: github
-      repo: mholt/archiver
+        argocd version --short --client | sed -rn 's/.*v([0-9\.]+).*/\1/p'
     hooks:
       - type: download
         github:
-          repo: mholt/archiver
-          asset: arc_linux_amd64
-        dest: '$HOME/.local/bin/archiver'
+          repo: argoproj/argo-cd
+          asset: argocd-linux-amd64
+        dest: '$HOME/.local/bin/argocd'
         chmod: 755
