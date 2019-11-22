@@ -1,9 +1,11 @@
-package providers
+package github
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/provider"
+	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +13,7 @@ import (
 
 const urlTemplate = "https://api.github.com/repos/%s/releases"
 
-type github struct {
+type Github struct {
 	Repo string
 }
 
@@ -19,8 +21,8 @@ type releaseDto struct {
 	TagName string `json:"tag_name"`
 }
 
-func NewGithub(config map[string]interface{}) (provider, error) {
-	var github github
+func (_ Github) NewProvider(config map[string]interface{}) (provider.Provider, error) {
+	var github Github
 	if err := mapstructure.Decode(config, &github); err != nil {
 		return nil, err
 	}
@@ -28,11 +30,11 @@ func NewGithub(config map[string]interface{}) (provider, error) {
 	return &github, nil
 }
 
-func (github github) GetVersion() (string, error) {
-	return "", nil
+func (github Github) GetVersion() (*version.Version, error) {
+	return nil, nil
 }
 
-func (github github) GetVersions() ([]string, error) {
+func (github Github) GetVersions() ([]*version.Version, error) {
 	url := fmt.Sprintf(urlTemplate, github.Repo)
 	log.Logger.Debugf("Fetching github releases from %s", url)
 	resp, err := http.Get(url)
@@ -50,9 +52,14 @@ func (github github) GetVersions() ([]string, error) {
 	}
 	log.Logger.Debugf("Fetched releases: %#v", releases)
 
-	var versions []string
+	var versions []*version.Version
 	for _, release := range releases {
-		versions = append(versions, release.TagName)
+		version, err := version.NewVersion(release.TagName)
+		if err != nil {
+			log.Logger.Debugf("Ignoring malformed version %s", version)
+			continue
+		}
+		versions = append(versions, version)
 	}
 	log.Logger.Debugf("Versions: %#v", versions)
 	return versions, nil

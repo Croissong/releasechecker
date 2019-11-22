@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/cavaliercoder/grab"
@@ -13,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -72,11 +70,13 @@ func (downloader downloader) Run(version string) error {
 	}
 
 	targetPath := os.ExpandEnv(downloader.config.Dest)
+	log.Logger.Debugf("Copy file to %s", targetPath)
 	err = util.CopyFile(tmpFilePath, targetPath)
 	if err != nil {
 		return err
 	}
 	if downloader.config.Chmod != 0 {
+		log.Logger.Debugf("Chmod to %s", downloader.config.Chmod)
 		err = os.Chmod(targetPath, downloader.config.Chmod)
 		if err != nil {
 			return err
@@ -92,11 +92,6 @@ func (downloader downloader) download(url string, destDir string) (string, error
 	req, _ := grab.NewRequest(dest, url)
 	resp := downloader.client.Do(req)
 	log.Logger.Infof("Response status: %v", resp.HTTPResponse.Status)
-
-	if err := resp.Err(); err != nil {
-		log.Logger.Errorf("Download failed: %v", err)
-		return "", err
-	}
 
 	// start UI loop
 	t := time.NewTicker(500 * time.Millisecond)
@@ -116,6 +111,11 @@ Loop:
 		}
 	}
 
+	if err := resp.Err(); err != nil {
+		log.Logger.Errorf("Download failed: %v", err)
+		return "", err
+	}
+
 	log.Logger.Infof("Download saved to %s", resp.Filename)
 	return resp.Filename, nil
 }
@@ -133,25 +133,20 @@ const githubUrlTmpl = "https://github.com/{{.Repo}}/releases/download/{{.Version
 
 func (downloader downloader) buildUrl(version string) (string, error) {
 	if downloader.config.Url != "" {
-		tmpl, err := template.New("urlTemplate").Parse(downloader.config.Url)
-		if err != nil {
-			return "", err
-		}
-
-		data := struct {
+		templateData := struct {
 			Version string
 		}{
 			Version: version,
 		}
-		var tpl bytes.Buffer
-		tmpl.Execute(&tpl, data)
-
-		return tpl.String(), nil
+		url, err := util.RenderTemplate(downloader.config.Url, templateData)
+		if err != nil {
+			return "", err
+		}
+		return url, nil
 	}
 
 	githubConf := downloader.config.Github
-	tmpl, _ := template.New("urlTemplate").Parse(githubUrlTmpl)
-	data := struct {
+	templateData := struct {
 		Version string
 		Repo    string
 		Asset   string
@@ -160,10 +155,11 @@ func (downloader downloader) buildUrl(version string) (string, error) {
 		Repo:    githubConf.Repo,
 		Asset:   githubConf.Asset,
 	}
-	var tpl bytes.Buffer
-	tmpl.Execute(&tpl, data)
-
-	return tpl.String(), nil
+	url, err := util.RenderTemplate(githubUrlTmpl, templateData)
+	if err != nil {
+		return "", err
+	}
+	return url, nil
 }
 
 func validateConfig(conf map[string]interface{}) (*config, error) {

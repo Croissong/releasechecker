@@ -1,20 +1,22 @@
-package providers
+package regex
 
 import (
 	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/provider"
+	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 )
 
-type regex struct {
+type Regex struct {
 	Regex string
 	Url   string
 }
 
-func NewRegex(config map[string]interface{}) (provider, error) {
-	var regex regex
+func (_ Regex) NewProvider(config map[string]interface{}) (provider.Provider, error) {
+	var regex Regex
 	if err := mapstructure.Decode(config, &regex); err != nil {
 		return nil, err
 	}
@@ -22,11 +24,11 @@ func NewRegex(config map[string]interface{}) (provider, error) {
 	return &regex, nil
 }
 
-func (regex regex) GetVersion() (string, error) {
-	return "", nil
+func (regex Regex) GetVersion() (*version.Version, error) {
+	return nil, nil
 }
 
-func (regex regex) GetVersions() ([]string, error) {
+func (regex Regex) GetVersions() ([]*version.Version, error) {
 	var versionRegex = regexp.MustCompile(regex.Regex)
 	resp, err := http.Get(regex.Url)
 	if err != nil {
@@ -39,9 +41,13 @@ func (regex regex) GetVersions() ([]string, error) {
 	}
 	bodyString := string(body)
 	matches := versionRegex.FindAllStringSubmatch(bodyString, -1)
-	var versions []string
+	var versions []*version.Version
 	for _, match := range matches {
-		versions = append(versions, match[1])
+		version, err := version.NewVersion(match[1])
+		if err != nil {
+			return nil, err
+		}
+		versions = append(versions, version)
 	}
 	log.Logger.Debug("%s", versions)
 	return versions, nil

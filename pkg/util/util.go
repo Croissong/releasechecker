@@ -1,13 +1,22 @@
 package util
 
 import (
+	"bytes"
 	"io"
 	"os"
-	"strings"
+	"text/template"
 )
 
-func StripWhitespace(str string) string {
-	return strings.Join(strings.Fields(str), "")
+func RenderTemplate(templateString string, data interface{}) (string, error) {
+	tmpl, err := template.New("tmpl").Parse(templateString)
+	if err != nil {
+		return "", err
+	}
+
+	var tpl bytes.Buffer
+	tmpl.Execute(&tpl, data)
+
+	return tpl.String(), nil
 }
 
 // CopyFile copies the contents of the file named src to the file named

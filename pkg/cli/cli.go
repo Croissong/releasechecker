@@ -5,8 +5,12 @@ import (
 	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/hooks"
 	"github.com/croissong/releasechecker/pkg/log"
-	"github.com/croissong/releasechecker/pkg/providers"
-	"github.com/croissong/releasechecker/pkg/versions"
+	"github.com/croissong/releasechecker/pkg/provider"
+	"github.com/croissong/releasechecker/pkg/provider/command"
+	"github.com/croissong/releasechecker/pkg/provider/docker"
+	"github.com/croissong/releasechecker/pkg/provider/github"
+	"github.com/croissong/releasechecker/pkg/provider/regex"
+	"github.com/croissong/releasechecker/pkg/provider/yaml"
 	ver "github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
 	"os"
@@ -31,6 +35,14 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(log.ConfigureLogger, config.InitConfig)
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.releasechecker.yaml)")
+}
+
+var providers = map[string]provider.Provider{
+	"command": command.Command{},
+	"github":  github.Github{},
+	"regex":   regex.Regex{},
+	"docker":  docker.Docker{},
+	"yaml":    yaml.Yaml{},
 }
 
 func checkReleases() {
@@ -59,7 +71,7 @@ func checkReleases() {
 
 		log.Logger.Infof("The current version for %s is %s", name, downstreamVersion)
 
-		if versions.IsNewer(upstreamVersion, downstreamVersion) {
+		if provider.IsNewerVersion(upstreamVersion, downstreamVersion) {
 			log.Logger.Info("Newer version detected")
 			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
 				log.Logger.Fatal(err)
@@ -74,17 +86,12 @@ func getUpstreamVersion(upstreamConfig map[string]interface{}) (*ver.Version, er
 	if len(upstreamConfig) == 0 {
 		return nil, errors.New("Missing upstream configuration")
 	}
-	upstream, err := providers.GetProvider(upstreamConfig)
+	upstream, err := provider.GetProvider(providers, upstreamConfig)
 	if err != nil {
 		log.Logger.Error(err)
 		return nil, errors.New("Error getting upstream provider")
 	}
-	versionStrings, err := upstream.GetVersions()
-	if err != nil {
-		log.Logger.Error(err)
-		return nil, errors.New("Error getting upsteam versions")
-	}
-	latestVersion, err := versions.GetLatestVersion(versionStrings)
+	latestVersion, err := provider.GetLatestVersion(upstream)
 	if err != nil {
 		log.Logger.Error(err)
 		return nil, errors.New("Invalid upstream version")
@@ -97,25 +104,15 @@ func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version
 	if len(downstreamConfig) == 0 {
 		return nil, errors.New("Missing downstream configuration")
 	}
-	downstream, err := providers.GetProvider(downstreamConfig)
+	downstream, err := provider.GetProvider(providers, downstreamConfig)
 	if err != nil {
 		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream provider")
 	}
-	currentVersionString, err := downstream.GetVersion()
+	version, err := downstream.GetVersion()
 	if err != nil {
 		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream version")
 	}
-
-	if currentVersionString == "" {
-		return nil, nil
-	}
-
-	currentVersion, err := ver.NewVersion(currentVersionString)
-	if err != nil {
-		log.Logger.Error(err)
-		return nil, errors.New("Invalid downstream version")
-	}
-	return currentVersion, nil
+	return version, nil
 }

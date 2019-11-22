@@ -31,7 +31,7 @@ entries:
           repo: roboll/helmfile
           asset: helmfile_linux_amd64
         dest: '$HOME/.local/bin/helmfile'
-        chmod: 755
+        chmod: 0755
 
   - name: argocd
     upstream:
@@ -48,3 +48,26 @@ entries:
           asset: argocd-linux-amd64
         dest: '$HOME/.local/bin/argocd'
         chmod: 755
+
+  - name: verdun-prometheus
+    upstream:
+      type: docker
+      repo: prometheus/prometheus
+    downstream:
+      type: yaml
+      url: https://raw.githubusercontent.com/Croissong/verdun/master/k8s/values/images.yml
+      path: 'prometheus.tag'
+
+    hooks:
+      - type: git
+        repo: git@github.com:Croissong/verdun.git
+        change:
+          command: |
+            yq w k8s/values/images.yml 'prometheus.tag' {{.NewVersion}} | sponge k8s/values/images.yml
+
+        commit:
+          msgTemplate: 'Bump prometheus -> {{.NewVersion}}'
+          branch: master
+          push: false
+          authorEmail: releasewatcher@patrician.cloud
+          authorName:  ReleaseWatcher Bot
