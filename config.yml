@@ -1,5 +1,5 @@
 debug: true
-initSources: true
+initDownstreams: true
 entries:
   - name: terraform
     upstream:

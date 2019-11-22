@@ -37,7 +37,7 @@ func (cmd command) GetVersion() (string, error) {
 	err := sourceCmd.Run()
 	if err != nil {
 		errMessage := fmt.Sprintf("Command err: %s - %s", err, out.String())
-		if config.Config.InitSources {
+		if config.Config.InitDownstreams {
 			log.Logger.Infof("Ignoring cmd err due to 'initSouces' set. (%s)", errMessage)
 			return "", nil
 		} else {
@@ -58,7 +58,7 @@ func (cmd command) GetVersions() ([]string, error) {
 	err := sourceCmd.Run()
 	if err != nil {
 		errMessage := fmt.Sprintf("Command err: %s - %s", err, out.String())
-		if config.Config.InitSources {
+		if config.Config.InitDownstreams {
 			log.Logger.Infof("Ignoring cmd err due to 'initSouces' set. (%s)", errMessage)
 			return nil, nil
 		} else {

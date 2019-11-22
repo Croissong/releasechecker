@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/hooks"
-	. "github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/providers"
 	"github.com/croissong/releasechecker/pkg/versions"
 	ver "github.com/hashicorp/go-version"
@@ -23,13 +23,13 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		os.Exit(1)
 	}
 }
 
 func init() {
-	cobra.OnInitialize(InitLogger, config.InitConfig)
+	cobra.OnInitialize(log.ConfigureLogger, config.InitConfig)
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.releasechecker.yaml)")
 }
 
@@ -37,35 +37,35 @@ func checkReleases() {
 	entries := config.Config.Entries
 	for _, entry := range entries {
 		name := entry.Name
-		Logger.Info("Checking version for ", name)
+		log.Logger.Info("Checking version for ", name)
 
 		upstreamVersion, err := getUpstreamVersion(entry.Upstream)
 		if err != nil {
-			Logger.Fatal(err)
+			log.Logger.Fatal(err)
 		}
 
 		downstreamVersion, err := getDownstreamVersion(entry.Downstream)
 		if err != nil {
-			Logger.Fatal(err)
+			log.Logger.Fatal(err)
 		}
 
 		if downstreamVersion == nil {
-			Logger.Infof("No downstream version for %s detected", name)
+			log.Logger.Infof("No downstream version for %s detected", name)
 			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
-				Logger.Fatal(err)
+				log.Logger.Fatal(err)
 			}
 			return
 		}
 
-		Logger.Infof("The current version for %s is %s", name, downstreamVersion)
+		log.Logger.Infof("The current version for %s is %s", name, downstreamVersion)
 
 		if versions.IsNewer(upstreamVersion, downstreamVersion) {
-			Logger.Info("Newer version detected")
+			log.Logger.Info("Newer version detected")
 			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
-				Logger.Fatal(err)
+				log.Logger.Fatal(err)
 			}
 		} else {
-			Logger.Info("No new version detected")
+			log.Logger.Info("No new version detected")
 		}
 	}
 }
@@ -76,20 +76,20 @@ func getUpstreamVersion(upstreamConfig map[string]interface{}) (*ver.Version, er
 	}
 	upstream, err := providers.GetProvider(upstreamConfig)
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Error getting upstream provider")
 	}
 	versionStrings, err := upstream.GetVersions()
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Error getting upsteam versions")
 	}
 	latestVersion, err := versions.GetLatestVersion(versionStrings)
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Invalid upstream version")
 	}
-	Logger.Info("Upstream version is ", latestVersion)
+	log.Logger.Info("Upstream version is ", latestVersion)
 	return latestVersion, nil
 }
 
@@ -99,12 +99,12 @@ func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version
 	}
 	downstream, err := providers.GetProvider(downstreamConfig)
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream provider")
 	}
 	currentVersionString, err := downstream.GetVersion()
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream version")
 	}
 
@@ -114,7 +114,7 @@ func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version
 
 	currentVersion, err := ver.NewVersion(currentVersionString)
 	if err != nil {
-		Logger.Error(err)
+		log.Logger.Error(err)
 		return nil, errors.New("Invalid downstream version")
 	}
 	return currentVersion, nil

@@ -5,9 +5,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var Logger *zap.SugaredLogger
+var log, _ = zap.NewDevelopment()
+var Logger = log.Sugar()
 
-func InitLogger() {
+func ConfigureLogger() {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	log, _ := config.Build()

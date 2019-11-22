@@ -39,9 +39,9 @@ func InitConfig() {
 }
 
 type configuration struct {
-	Debug       bool
-	InitSources bool
-	Entries     []entry
+	Debug           bool
+	InitDownstreams bool
+	Entries         []entry
 }
 
 type entry struct {
