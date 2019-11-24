@@ -40,7 +40,7 @@ type changeConfig struct {
 	Command string
 }
 
-func NewGitHook(conf map[string]interface{}) (*gitHook, error) {
+func (_ gitHook) NewHook(conf map[string]interface{}) (hook, error) {
 	config, err := validateGitConfig(conf)
 	if err != nil {
 		return nil, err
@@ -73,10 +73,12 @@ func (gitHook gitHook) Run(newVersion string, oldVersion string) error {
 	if err != nil {
 		return err
 	}
-	err = gitHook.push()
-	if err != nil {
-		log.Logger.Error(err)
-		return err
+	if gitHook.config.Commit.Push {
+		err = gitHook.push()
+		if err != nil {
+			log.Logger.Error(err)
+			return err
+		}
 	}
 	return nil
 }
@@ -85,10 +87,10 @@ func (gitHook gitHook) clone() (*git.Repository, error) {
 
 	url := gitHook.config.Repo
 	var repo *git.Repository
-	log.Logger.Infof("git clone %s %s --recursive", url, gitHook.repoDir)
+	log.Logger.Infof("git clone %s %s", url, gitHook.repoDir)
 	repo, err := git.PlainClone(gitHook.repoDir, false, &git.CloneOptions{
 		URL:   url,
-		Depth: 1,
+		Depth: 2,
 	})
 	if err != nil {
 		return nil, err
@@ -118,7 +120,9 @@ func (gitHook gitHook) checkout() (*git.Repository, error) {
 
 	log.Logger.Debug("Fetching origin")
 	err = repo.Fetch(&git.FetchOptions{
-		RemoteName: "origin",
+		RemoteName: git.DefaultRemoteName,
+		Depth:      2,
+		Force:      true,
 	})
 	if err == git.NoErrAlreadyUpToDate {
 		log.Logger.Debug("Already up-to-date")

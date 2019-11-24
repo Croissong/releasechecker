@@ -5,17 +5,23 @@ import (
 	"fmt"
 )
 
-var hookMap = map[string]func(conf map[string]interface{}) (hook, error){
-	"download": NewDownloader,
+type hook interface {
+	NewHook(map[string]interface{}) (hook, error)
+	Run(string, string) error
 }
 
-func RunHooks(version string, hookConfigs []map[string]interface{}) error {
+var hookTypes = map[string]hook{
+	"download": downloadHook{},
+	"git":      gitHook{},
+}
+
+func RunHooks(newVersion string, oldVersion string, hookConfigs []map[string]interface{}) error {
 	hookRunners, err := getHooks(hookConfigs)
 	if err != nil {
 		return err
 	}
 	for _, hook := range hookRunners {
-		err := hook.Run(version)
+		err := hook.Run(newVersion, oldVersion)
 		if err != nil {
 			return err
 		}
@@ -28,8 +34,8 @@ func getHooks(hookConfigs []map[string]interface{}) ([]hook, error) {
 	for _, config := range hookConfigs {
 		if hookType, ok := config["type"]; ok {
 			hookType := hookType.(string)
-			if hookConstructor, ok := hookMap[hookType]; ok {
-				hook, err := hookConstructor(config)
+			if hook, ok := hookTypes[hookType]; ok {
+				hook, err := hook.NewHook(config)
 				if err != nil {
 					return nil, err
 				}
@@ -42,8 +48,4 @@ func getHooks(hookConfigs []map[string]interface{}) ([]hook, error) {
 		}
 	}
 	return hooks, nil
-}
-
-type hook interface {
-	Run(version string) error
 }

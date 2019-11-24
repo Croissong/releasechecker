@@ -15,12 +15,12 @@ import (
 	"time"
 )
 
-type downloader struct {
-	config *config
+type downloadHook struct {
+	config *downloadConfig
 	client *grab.Client
 }
 
-type config struct {
+type downloadConfig struct {
 	Url     string
 	Dest    string
 	Github  githubConfig
@@ -37,17 +37,18 @@ type githubConfig struct {
 	Asset string
 }
 
-func NewDownloader(conf map[string]interface{}) (hook, error) {
-	config, err := validateConfig(conf)
+func (_ downloadHook) NewHook(conf map[string]interface{}) (hook, error) {
+	config, err := validateDownloadConfig(conf)
 	if err != nil {
 		return nil, err
 	}
-	downloader := downloader{config: config, client: grab.NewClient()}
-	return &downloader, nil
+	download := downloadHook{config: config, client: grab.NewClient()}
+	return &download, nil
 }
 
-func (downloader downloader) Run(version string) error {
-	url, err := downloader.buildUrl(version)
+func (download downloadHook) Run(newVersion string, oldVersion string) error {
+	config := download.config
+	url, err := download.buildUrl(newVersion)
 	if err != nil {
 		return err
 	}
@@ -58,26 +59,25 @@ func (downloader downloader) Run(version string) error {
 	}
 	defer os.RemoveAll(tmpDir) // clean up
 
-	tmpFilePath, err := downloader.download(url, tmpDir)
+	tmpFilePath, err := download.download(url, tmpDir)
 	if err != nil {
 		log.Logger.Fatal(err)
 	}
 
-	extractConf := downloader.config.Extract
-	if extractConf != (extractConfig{}) {
-		downloader.extract(tmpFilePath, tmpDir)
-		tmpFilePath = filepath.Join(tmpDir, downloader.config.Extract.File)
+	if config.Extract != (extractConfig{}) {
+		download.extract(tmpFilePath, tmpDir)
+		tmpFilePath = filepath.Join(tmpDir, config.Extract.File)
 	}
 
-	targetPath := os.ExpandEnv(downloader.config.Dest)
+	targetPath := os.ExpandEnv(download.config.Dest)
 	log.Logger.Debugf("Copy file to %s", targetPath)
 	err = util.CopyFile(tmpFilePath, targetPath)
 	if err != nil {
 		return err
 	}
-	if downloader.config.Chmod != 0 {
-		log.Logger.Debugf("Chmod to %s", downloader.config.Chmod)
-		err = os.Chmod(targetPath, downloader.config.Chmod)
+	if config.Chmod != 0 {
+		log.Logger.Debugf("Chmod to %s", config.Chmod)
+		err = os.Chmod(targetPath, config.Chmod)
 		if err != nil {
 			return err
 		}
@@ -85,12 +85,12 @@ func (downloader downloader) Run(version string) error {
 	return nil
 }
 
-func (downloader downloader) download(url string, destDir string) (string, error) {
+func (download downloadHook) download(url string, destDir string) (string, error) {
 	urlParts := strings.Split(url, "/")
 	dest := filepath.Join(destDir, urlParts[len(urlParts)-1])
 	log.Logger.Infof("Downloading %s to %s ...", url, dest)
 	req, _ := grab.NewRequest(dest, url)
-	resp := downloader.client.Do(req)
+	resp := download.client.Do(req)
 	log.Logger.Infof("Response status: %v", resp.HTTPResponse.Status)
 
 	// start UI loop
@@ -120,7 +120,7 @@ Loop:
 	return resp.Filename, nil
 }
 
-func (downloader downloader) extract(archive string, dest string) error {
+func (_ downloadHook) extract(archive string, dest string) error {
 	log.Logger.Infof("Extracting archive %s to %s", archive, dest)
 	err := archiver.Unarchive(archive, dest)
 	if err != nil {
@@ -131,21 +131,22 @@ func (downloader downloader) extract(archive string, dest string) error {
 
 const githubUrlTmpl = "https://github.com/{{.Repo}}/releases/download/{{.Version}}/{{.Asset}}"
 
-func (downloader downloader) buildUrl(version string) (string, error) {
-	if downloader.config.Url != "" {
+func (download downloadHook) buildUrl(version string) (string, error) {
+	config := download.config
+	if config.Url != "" {
 		templateData := struct {
 			Version string
 		}{
 			Version: version,
 		}
-		url, err := util.RenderTemplate(downloader.config.Url, templateData)
+		url, err := util.RenderTemplate(config.Url, templateData)
 		if err != nil {
 			return "", err
 		}
 		return url, nil
 	}
 
-	githubConf := downloader.config.Github
+	githubConf := config.Github
 	templateData := struct {
 		Version string
 		Repo    string
@@ -162,8 +163,8 @@ func (downloader downloader) buildUrl(version string) (string, error) {
 	return url, nil
 }
 
-func validateConfig(conf map[string]interface{}) (*config, error) {
-	var config config
+func validateDownloadConfig(conf map[string]interface{}) (*downloadConfig, error) {
+	var config downloadConfig
 	if err := mapstructure.Decode(conf, &config); err != nil {
 		return nil, err
 	}

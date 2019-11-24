@@ -2,9 +2,9 @@ package config
 
 import (
 	"github.com/croissong/releasechecker/pkg/log"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 	"os"
+	"path/filepath"
 )
 
 var CfgFile string
@@ -17,14 +17,14 @@ func InitConfig() {
 		viper.SetConfigType("yaml")
 	} else {
 		// Find home directory.
-		home, err := homedir.Dir()
+		configDir, err := os.UserConfigDir()
 		if err != nil {
 			log.Logger.Error(err)
 			os.Exit(1)
 		}
 
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".releasechecker")
+		viper.AddConfigPath(filepath.Join(configDir, "releasechecker"))
+		viper.SetConfigName("config")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

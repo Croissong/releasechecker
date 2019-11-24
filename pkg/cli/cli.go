@@ -63,7 +63,7 @@ func checkReleases() {
 
 		if downstreamVersion == nil {
 			log.Logger.Infof("No downstream version for %s detected", name)
-			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
+			if err = hooks.RunHooks(upstreamVersion.Original(), downstreamVersion.Original(), entry.Hooks); err != nil {
 				log.Logger.Fatal(err)
 			}
 			return
@@ -73,7 +73,7 @@ func checkReleases() {
 
 		if provider.IsNewerVersion(upstreamVersion, downstreamVersion) {
 			log.Logger.Info("Newer version detected")
-			if err = hooks.RunHooks(upstreamVersion.Original(), entry.Hooks); err != nil {
+			if err = hooks.RunHooks(upstreamVersion.Original(), downstreamVersion.Original(), entry.Hooks); err != nil {
 				log.Logger.Fatal(err)
 			}
 		} else {

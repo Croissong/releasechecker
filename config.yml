@@ -52,7 +52,7 @@ entries:
   - name: verdun-prometheus
     upstream:
       type: docker
-      repo: prometheus/prometheus
+      repo: prom/prometheus
     downstream:
       type: yaml
       url: https://raw.githubusercontent.com/Croissong/verdun/master/k8s/values/images.yml
