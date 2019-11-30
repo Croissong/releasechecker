@@ -4,7 +4,6 @@ import (
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/provider"
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -26,22 +25,17 @@ func (_ Docker) NewProvider(conf map[string]interface{}) (provider.Provider, err
 	return &docker, nil
 }
 
-func (docker Docker) GetVersion() (*version.Version, error) {
-	return nil, nil
+func (docker Docker) GetVersion() (string, error) {
+	return "", nil
 }
 
-func (docker Docker) GetVersions() ([]*version.Version, error) {
+func (docker Docker) GetVersions() ([]string, error) {
 	tags, err := crane.ListTags(docker.config.Repo)
 	if err != nil {
 		return nil, err
 	}
-	var versions []*version.Version
-	for _, vString := range tags {
-		version, err := version.NewVersion(vString)
-		if err != nil {
-			log.Logger.Debugf("Ignoring malformed version %s", vString)
-			continue
-		}
+	var versions []string
+	for _, version := range tags {
 		versions = append(versions, version)
 	}
 	log.Logger.Debugf("Versions: %+v", versions)

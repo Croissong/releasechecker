@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/provider"
-	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
 	"net/http"
@@ -30,11 +29,11 @@ func (_ Github) NewProvider(config map[string]interface{}) (provider.Provider, e
 	return &github, nil
 }
 
-func (github Github) GetVersion() (*version.Version, error) {
-	return nil, nil
+func (github Github) GetVersion() (string, error) {
+	return "", nil
 }
 
-func (github Github) GetVersions() ([]*version.Version, error) {
+func (github Github) GetVersions() ([]string, error) {
 	url := fmt.Sprintf(urlTemplate, github.Repo)
 	log.Logger.Debugf("Fetching github releases from %s", url)
 	resp, err := http.Get(url)
@@ -52,9 +51,9 @@ func (github Github) GetVersions() ([]*version.Version, error) {
 	}
 	log.Logger.Debugf("Fetched releases: %#v", releases)
 
-	var versions []*version.Version
+	var versions []string
 	for _, release := range releases {
-		version, err := version.NewVersion(release.TagName)
+		version := release.TagName
 		if err != nil {
 			log.Logger.Debugf("Ignoring malformed version %s", version)
 			continue

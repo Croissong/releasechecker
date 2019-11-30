@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"github.com/Masterminds/semver"
 	"github.com/croissong/releasechecker/pkg/config"
 	"github.com/croissong/releasechecker/pkg/hooks"
 	"github.com/croissong/releasechecker/pkg/log"
@@ -11,7 +12,6 @@ import (
 	"github.com/croissong/releasechecker/pkg/provider/github"
 	"github.com/croissong/releasechecker/pkg/provider/regex"
 	"github.com/croissong/releasechecker/pkg/provider/yaml"
-	ver "github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -71,7 +71,8 @@ func checkReleases() {
 
 		log.Logger.Infof("The current version for %s is %s", name, downstreamVersion)
 
-		if provider.IsNewerVersion(upstreamVersion, downstreamVersion) {
+		isNewerVersion := upstreamVersion.Compare(downstreamVersion) == 1
+		if isNewerVersion {
 			log.Logger.Info("Newer version detected")
 			if err = hooks.RunHooks(upstreamVersion.Original(), downstreamVersion.Original(), entry.Hooks); err != nil {
 				log.Logger.Fatal(err)
@@ -82,7 +83,7 @@ func checkReleases() {
 	}
 }
 
-func getUpstreamVersion(upstreamConfig map[string]interface{}) (*ver.Version, error) {
+func getUpstreamVersion(upstreamConfig map[string]interface{}) (*semver.Version, error) {
 	if len(upstreamConfig) == 0 {
 		return nil, errors.New("Missing upstream configuration")
 	}
@@ -100,7 +101,7 @@ func getUpstreamVersion(upstreamConfig map[string]interface{}) (*ver.Version, er
 	return latestVersion, nil
 }
 
-func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version, error) {
+func getDownstreamVersion(downstreamConfig map[string]interface{}) (*semver.Version, error) {
 	if len(downstreamConfig) == 0 {
 		return nil, errors.New("Missing downstream configuration")
 	}
@@ -109,10 +110,15 @@ func getDownstreamVersion(downstreamConfig map[string]interface{}) (*ver.Version
 		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream provider")
 	}
-	version, err := downstream.GetVersion()
+	vString, err := downstream.GetVersion()
 	if err != nil {
 		log.Logger.Error(err)
 		return nil, errors.New("Error getting downstream version")
+	}
+	version, err := semver.NewVersion(vString)
+	if err != nil {
+		log.Logger.Errorf("%s: %s", err, vString)
+		return nil, err
 	}
 	return version, nil
 }

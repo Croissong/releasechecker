@@ -7,7 +7,6 @@ import (
 	"github.com/croissong/releasechecker/pkg/log"
 	"github.com/croissong/releasechecker/pkg/provider"
 	"github.com/croissong/releasechecker/pkg/util/cmd"
-	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -27,25 +26,21 @@ func (_ Command) NewProvider(config map[string]interface{}) (provider.Provider, 
 	return &command, nil
 }
 
-func (cmd Command) GetVersion() (*version.Version, error) {
-	output, err := cmdutil.RunCmd(cmd.Command, cmdutil.CmdOptions{})
+func (cmd Command) GetVersion() (string, error) {
+	version, err := cmdutil.RunCmd(cmd.Command, cmdutil.CmdOptions{})
 	if err != nil {
-		errMessage := fmt.Sprintf("Command err: %s - %s", err, output)
+		errMessage := fmt.Sprintf("Command err: %s - %s", err, version)
 		if config.Config.InitDownstreams {
 			log.Logger.Infof("Ignoring cmd err due to 'initSouces' set. (%s)", errMessage)
-			return nil, nil
+			return "", nil
 		} else {
-			return nil, errors.New(errMessage)
+			return "", errors.New(errMessage)
 		}
-	}
-	version, err := version.NewVersion(output)
-	if err != nil {
-		return nil, err
 	}
 	log.Logger.Debugf("Got source version: %s", version)
 	return version, nil
 }
 
-func (cmd Command) GetVersions() ([]*version.Version, error) {
+func (cmd Command) GetVersions() ([]string, error) {
 	return nil, nil
 }

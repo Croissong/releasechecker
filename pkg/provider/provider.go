@@ -3,14 +3,15 @@ package provider
 import (
 	"errors"
 	"fmt"
-	"github.com/hashicorp/go-version"
+	"github.com/Masterminds/semver"
+	"github.com/croissong/releasechecker/pkg/log"
 	"sort"
 )
 
 type Provider interface {
 	NewProvider(map[string]interface{}) (Provider, error)
-	GetVersion() (*version.Version, error)
-	GetVersions() ([]*version.Version, error)
+	GetVersion() (string, error)
+	GetVersions() ([]string, error)
 }
 
 func GetProvider(providers map[string]Provider, providerConfig map[string]interface{}) (Provider, error) {
@@ -24,16 +25,22 @@ func GetProvider(providers map[string]Provider, providerConfig map[string]interf
 	return nil, errors.New("Missing 'type' key in provider config")
 }
 
-func GetLatestVersion(provider Provider) (*version.Version, error) {
-	versions, err := provider.GetVersions()
+func GetLatestVersion(provider Provider) (*semver.Version, error) {
+	vStrings, err := provider.GetVersions()
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(version.Collection(versions))
+	var versions []*semver.Version
+	for _, vString := range vStrings {
+		version, err := semver.NewVersion(vString)
+		if err != nil {
+			log.Logger.Debugf("Ignoring version %s (%s)", vString, err)
+			continue
+		}
+		versions = append(versions, version)
+	}
+	sort.Sort(semver.Collection(versions))
+	log.Logger.Debug(versions)
 	latestVersion := versions[len(versions)-1]
 	return latestVersion, nil
-}
-
-func IsNewerVersion(a *version.Version, b *version.Version) bool {
-	return a.Compare(b) == 1
 }

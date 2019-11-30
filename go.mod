@@ -3,15 +3,14 @@ module github.com/croissong/releasechecker
 go 1.13
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/frankban/quicktest v1.7.2 // indirect
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-containerregistry v0.0.0-20191115225042-f8574ec722f4
-	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
-	github.com/hashicorp/go-version v1.2.0
 	github.com/mholt/archiver v3.1.1+incompatible
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.3.0+incompatible // indirect

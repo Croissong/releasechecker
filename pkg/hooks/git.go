@@ -6,6 +6,7 @@ import (
 	"github.com/croissong/releasechecker/pkg/util/cmd"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"os"
@@ -34,6 +35,7 @@ type commitConfig struct {
 	Push        bool
 	AuthorName  string
 	AuthorEmail string
+	Tag         string
 }
 
 type changeConfig struct {
@@ -54,6 +56,7 @@ func (_ gitHook) NewHook(conf map[string]interface{}) (hook, error) {
 }
 
 func (gitHook gitHook) Run(newVersion string, oldVersion string) error {
+	conf := gitHook.config
 	var repo *git.Repository
 	repo, err := gitHook.clone()
 	if err == git.ErrRepositoryAlreadyExists {
@@ -69,11 +72,19 @@ func (gitHook gitHook) Run(newVersion string, oldVersion string) error {
 	if err != nil {
 		return err
 	}
-	err = gitHook.commit(newVersion, oldVersion)
+	commit, err := gitHook.commit(newVersion, oldVersion)
 	if err != nil {
 		return err
 	}
-	if gitHook.config.Commit.Push {
+
+	if commit != nil && conf.Commit.Tag != "" {
+		err = gitHook.tag(*commit, newVersion, conf.Commit)
+		if err != nil {
+			return err
+		}
+	}
+
+	if conf.Commit.Push {
 		err = gitHook.push()
 		if err != nil {
 			log.Logger.Error(err)
@@ -84,7 +95,6 @@ func (gitHook gitHook) Run(newVersion string, oldVersion string) error {
 }
 
 func (gitHook gitHook) clone() (*git.Repository, error) {
-
 	url := gitHook.config.Repo
 	var repo *git.Repository
 	log.Logger.Infof("git clone %s %s", url, gitHook.repoDir)
@@ -166,18 +176,18 @@ func (gitHook gitHook) change(newVersion string, oldVersion string) error {
 	return nil
 }
 
-func (gitHook gitHook) commit(newVersion string, oldVersion string) error {
+func (gitHook gitHook) commit(newVersion string, oldVersion string) (*plumbing.Hash, error) {
 	commitConf := gitHook.config.Commit
 	worktree, err := gitHook.repo.Worktree()
 	if err != nil {
 		log.Logger.Error(err)
-		return err
+		return nil, err
 	}
 	worktree.Add(".")
 	status, _ := worktree.Status()
 	if status.IsClean() {
 		log.Logger.Warn("Nothing to commit")
-		return nil
+		return nil, nil
 	}
 
 	templateData := struct {
@@ -190,7 +200,7 @@ func (gitHook gitHook) commit(newVersion string, oldVersion string) error {
 	message, err := util.RenderTemplate(commitConf.MsgTemplate, templateData)
 	if err != nil {
 		log.Logger.Error(err)
-		return err
+		return nil, err
 	}
 	commit, err := worktree.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
@@ -201,20 +211,45 @@ func (gitHook gitHook) commit(newVersion string, oldVersion string) error {
 	})
 	if err != nil {
 		log.Logger.Error(err)
-		return err
+		return nil, err
 	}
 	obj, err := gitHook.repo.CommitObject(commit)
 	if err != nil {
 		log.Logger.Error(err)
-		return err
+		return nil, err
 	}
 	log.Logger.Debugf("Committed: %s", obj)
-	return nil
+	return &commit, nil
+}
+
+func (gitHook gitHook) tag(commit plumbing.Hash, newVersion string, commitConf commitConfig) error {
+	templateData := struct {
+		NewVersion string
+	}{
+		NewVersion: newVersion,
+	}
+	tag, err := util.RenderTemplate(commitConf.Tag, templateData)
+	if err != nil {
+		log.Logger.Error(err)
+		return err
+	}
+	_, err = gitHook.repo.CreateTag(tag, commit, nil)
+	if err != nil {
+		log.Logger.Error(err)
+		return err
+	}
+	log.Logger.Debugf("Created tag: %s on commit %s", tag, commit)
+	return err
 }
 
 func (gitHook gitHook) push() error {
 	log.Logger.Debug("Pushing")
-	err := gitHook.repo.Push(&git.PushOptions{})
+	err := gitHook.repo.Push(&git.PushOptions{
+		RefSpecs: []config.RefSpec{
+			config.RefSpec("refs/heads/master:refs/heads/master"),
+			config.RefSpec("refs/tags/*:refs/tags/*"),
+		},
+	})
 	return err
 }
 

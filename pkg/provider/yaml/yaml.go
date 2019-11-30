@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/croissong/releasechecker/pkg/provider"
 	"github.com/croissong/releasechecker/pkg/util/cmd"
-	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/mapstructure"
 	"io/ioutil"
 	"net/http"
@@ -28,29 +27,25 @@ func (_ Yaml) NewProvider(conf map[string]interface{}) (provider.Provider, error
 	return &yaml, nil
 }
 
-func (yaml Yaml) GetVersion() (*version.Version, error) {
+func (yaml Yaml) GetVersion() (string, error) {
 	resp, err := http.Get(yaml.config.Url)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	bodyString := string(body)
-	output, err := execYq(yaml.config.Path, bodyString)
+	version, err := execYq(yaml.config.Path, bodyString)
 	if err != nil {
-		return nil, err
-	}
-	version, err := version.NewVersion(output)
-	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return version, nil
 }
 
-func (yaml Yaml) GetVersions() ([]*version.Version, error) {
+func (yaml Yaml) GetVersions() ([]string, error) {
 	return nil, nil
 }
 
