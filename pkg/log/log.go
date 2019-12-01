@@ -8,8 +8,12 @@ import (
 var log, _ = zap.NewDevelopment()
 var Logger = log.Sugar()
 
-func ConfigureLogger() {
+func ConfigureLogger(debugMode bool) {
 	config := zap.NewDevelopmentConfig()
+	if !debugMode {
+		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+		config.Development = false
+	}
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	log, _ := config.Build()
 	Logger = log.Sugar()

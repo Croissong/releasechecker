@@ -43,7 +43,6 @@ func (regex Regex) GetVersions() ([]string, error) {
 		return nil, err
 	}
 	bodyString := string(body)
-	log.Logger.Debug(bodyString)
 	matches := versionRegex.FindAllStringSubmatch(bodyString, -1)
 	var versions []string
 	for _, match := range matches {

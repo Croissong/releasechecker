@@ -33,7 +33,10 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(log.ConfigureLogger, config.InitConfig)
+	cobra.OnInitialize(func() {
+		config.InitConfig()
+		log.ConfigureLogger(config.Config.Debug)
+	})
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.releasechecker.yaml)")
 }
 

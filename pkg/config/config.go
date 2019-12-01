@@ -32,7 +32,7 @@ func InitConfig() {
 		log.Logger.Fatalf("Error reading config file, %s", err)
 	}
 	err := viper.Unmarshal(&Config)
-	log.Logger.Infof("Using config: %+v", Config)
+	log.Logger.Debugf("Using config: %+v", Config)
 	if err != nil {
 		log.Logger.Fatalf("unable to decode into struct, %v", err)
 	}
