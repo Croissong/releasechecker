@@ -41,6 +41,9 @@ func GetLatestVersion(provider Provider) (*semver.Version, error) {
 	}
 	sort.Sort(semver.Collection(versions))
 	log.Logger.Debug(versions)
+	if len(versions) == 0 {
+		return nil, errors.New("Found 0 versions")
+	}
 	latestVersion := versions[len(versions)-1]
 	return latestVersion, nil
 }

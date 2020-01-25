@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/croissong/releasechecker/pkg/log"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
+
+	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/spf13/viper"
 )
 
 var CfgFile string
@@ -32,7 +33,6 @@ func InitConfig() {
 		log.Logger.Fatalf("Error reading config file, %s", err)
 	}
 	err := viper.Unmarshal(&Config)
-	log.Logger.Debugf("Using config: %+v", Config)
 	if err != nil {
 		log.Logger.Fatalf("unable to decode into struct, %v", err)
 	}

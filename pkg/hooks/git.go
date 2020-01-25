@@ -1,19 +1,20 @@
 package hooks
 
 import (
-	"github.com/croissong/releasechecker/pkg/log"
-	"github.com/croissong/releasechecker/pkg/util"
-	"github.com/croissong/releasechecker/pkg/util/cmd"
-	"github.com/mitchellh/mapstructure"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/croissong/releasechecker/pkg/log"
+	"github.com/croissong/releasechecker/pkg/util"
+	cmdutil "github.com/croissong/releasechecker/pkg/util/cmd"
+	"github.com/mitchellh/mapstructure"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 type gitHook struct {
@@ -84,7 +85,7 @@ func (gitHook gitHook) Run(newVersion string, oldVersion string) error {
 		}
 	}
 
-	if conf.Commit.Push {
+	if commit != nil && conf.Commit.Push {
 		err = gitHook.push()
 		if err != nil {
 			log.Logger.Error(err)
